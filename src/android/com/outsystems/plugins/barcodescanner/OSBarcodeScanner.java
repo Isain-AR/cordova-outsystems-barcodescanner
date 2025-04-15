@@ -85,6 +85,8 @@ public class OSBarcodeScanner extends CordovaPlugin {
             ViewGroup rootView = (ViewGroup) ((ViewGroup) activity.findViewById(android.R.id.content)).getChildAt(0);
             rootView.addView(scannerView, params);
 
+            scannerView.startDecoding();
+
             scannerView.decode(result -> {
                 if (result != null && result.getText() != null) {
                     rootView.removeView(scannerView);
