@@ -12,7 +12,20 @@ import com.google.zxing.client.android.Intents;
 import com.google.zxing.integration.android.IntentIntegrator;
 import com.google.zxing.integration.android.IntentResult;
 
+
+// Para tener una vista embebida
+import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.view.Gravity;
+import com.journeyapps.barcodescanner.BarcodeCallback;
+import com.journeyapps.barcodescanner.BarcodeResult;
+import android.app.Activity;
+// Para tener una vista embebida
+
+
 public class OSBarcodeScanner extends CordovaPlugin {
+    
+    private BarcodeScannerView scannerView;
 
     public final int CUSTOMIZED_REQUEST_CODE = 0x0000ffff;
     static private CallbackContext _callbackContext;
@@ -46,31 +59,71 @@ public class OSBarcodeScanner extends CordovaPlugin {
     }
 
     private void scan(String scanInstructions,
-                      int cameraDirection,
-                      int scanOrientation,
-                      boolean scanLine,
-                      boolean scanButton,
-                      String scanText) {
+                  int cameraDirection,
+                  int scanOrientation,
+                  boolean scanLine,
+                  boolean scanButton,
+                  String scanText) {
 
-        IntentIntegrator integrator = new IntentIntegrator(this.cordova.getActivity());
-        integrator.setOrientationLocked(false);
+        Activity activity = cordova.getActivity();
 
-        if (cameraDirection == BACK_CAMERA) {
-            integrator.setCameraId(0);
-        } else if (cameraDirection == FRONT_CAMERA) {
-            integrator.setCameraId(1);
-        }
+        activity.runOnUiThread(() -> {
+            if (scannerView != null) {
+                return; // Ya esta escaneando
+            }
 
-        integrator.setCaptureActivity(CustomScannerActivity.class);
-        integrator.addExtra("SCAN_INSTRUCTIONS", scanInstructions);
-        integrator.addExtra("SCAN_ORIENTATION", scanOrientation);
-        integrator.addExtra("SCAN_LINE", scanLine);
-        integrator.addExtra("SCAN_BUTTON", scanButton);
-        integrator.addExtra("SCAN_TEXT", scanText);
-        integrator.initiateScan();
+            scannerView = new BarcodeScannerView(activity);
 
-        this.cordova.setActivityResultCallback(this);
+            // Puedes ajustar el tamano aqui
+            FrameLayout.LayoutParams params = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT,
+                FrameLayout.LayoutParams.MATCH_PARENT // o 500dp si lo quieres parcial
+            );
+            params.gravity = Gravity.TOP;
+
+            // Inserta la vista en el layout actual
+            ViewGroup rootView = (ViewGroup) ((ViewGroup) activity.findViewById(android.R.id.content)).getChildAt(0);
+            rootView.addView(scannerView, params);
+
+            scannerView.decode(result -> {
+                if (result != null && result.getText() != null) {
+                    rootView.removeView(scannerView);
+                    scannerView = null;
+
+                    if (_callbackContext != null) {
+                        _callbackContext.success(result.getText());
+                    }
+                }
+            });
+        });
     }
+
+    // private void scan(String scanInstructions,
+    //                   int cameraDirection,
+    //                   int scanOrientation,
+    //                   boolean scanLine,
+    //                   boolean scanButton,
+    //                   String scanText) {
+
+    //     IntentIntegrator integrator = new IntentIntegrator(this.cordova.getActivity());
+    //     integrator.setOrientationLocked(false);
+
+    //     if (cameraDirection == BACK_CAMERA) {
+    //         integrator.setCameraId(0);
+    //     } else if (cameraDirection == FRONT_CAMERA) {
+    //         integrator.setCameraId(1);
+    //     }
+
+    //     integrator.setCaptureActivity(CustomScannerActivity.class);
+    //     integrator.addExtra("SCAN_INSTRUCTIONS", scanInstructions);
+    //     integrator.addExtra("SCAN_ORIENTATION", scanOrientation);
+    //     integrator.addExtra("SCAN_LINE", scanLine);
+    //     integrator.addExtra("SCAN_BUTTON", scanButton);
+    //     integrator.addExtra("SCAN_TEXT", scanText);
+    //     integrator.initiateScan();
+
+    //     this.cordova.setActivityResultCallback(this);
+    // }
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
@@ -107,4 +160,10 @@ public class OSBarcodeScanner extends CordovaPlugin {
         }
     }
 
+    public static void sendScanResult(String text) {
+        if (_callbackContext != null) {
+            _callbackContext.success(text);
+        }
+    }
+    
 }
